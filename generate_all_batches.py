@@ -1,0 +1,58 @@
+import os
+import json
+
+master_list = [
+ "University of Oxford", "University of Cambridge", "Imperial College London", "UCL", "ETH Zurich", 
+ "The University of Edinburgh", "Karolinska Institutet", "Universität Heidelberg", "Ludwig-Maximilians-Universität München", "King's College London", 
+ "University of Copenhagen", "EPFL", "Sorbonne University", "Wageningen University", "KU Leuven", 
+ "The University of Manchester", "Uppsala University", "University of Zurich", "University of Glasgow", "Technical University of Munich", 
+ "Université Paris-Saclay", "Utrecht University", "Universitat de Barcelona", "Ghent University", "Charité - Universitätsmedizin Berlin", 
+ "University of Helsinki", "Eberhard Karls Universität Tübingen", "Université PSL", "Lund University", "University of Amsterdam", 
+ "University of Göttingen", "Leiden University", "University of Bristol", "University of Vienna", "Université de Montpellier", 
+ "Stockholm University", "Freie Universitaet Berlin", "University of Birmingham", "University of Basel", "Sapienza University of Rome", 
+ "University of Liverpool", "University of Exeter", "University of Lausanne", "Aarhus University", "Humboldt-Universität zu Berlin", 
+ "Rheinische Friedrich-Wilhelms-Universität Bonn", "The University of Sheffield", "University of Groningen", "Università di Padova", "Albert-Ludwigs-Universitaet Freiburg", 
+ "Universitat Autònoma de Barcelona", "University of Oslo", "Aix-Marseille University", "Queen Mary University of London", "Technical University of Denmark", 
+ "University of Milan", "UCLouvain", "University of Nottingham", "University of Bologna", "Trinity College Dublin", 
+ "Université Paris Cité", "KTH Royal Institute of Technology", "University of Leeds", "University of Geneva", "Newcastle University", 
+ "Cardiff University", "Université de Strasbourg", "Erasmus University Rotterdam", "London School of Hygiene & Tropical Medicine", "Universite libre de Bruxelles", 
+ "University of Dundee", "University of Warwick", "Universidad Autónoma de Madrid", "Lomonosov Moscow State University", "Delft University of Technology", 
+ "Universität Hamburg", "Complutense University of Madrid", "Radboud University", "University of Cologne", "Vrije Universiteit Amsterdam", 
+ "Julius-Maximilians-Universität Würzburg", "University of Bordeaux", "Goethe-University Frankfurt", "University of Bern", "University of Porto", 
+ "University of York", "Université Claude Bernard Lyon 1", "Queen's University Belfast", "Technische Universität Dresden", "RWTH Aachen University", 
+ "University of Antwerp", "Charles University", "TU Berlin", "Umea University", "Universitat Pompeu Fabra", 
+ "University College Cork", "University College Dublin", "University of Aberdeen", "University of Gothenburg", "University of Lisbon", 
+ "University of Naples - Federico II", "University of Southampton", "University of St Andrews", "University of Tartu", "Universität Leipzig", 
+ "Université Grenoble Alpes", "Université Paul Sabatier Toulouse III", "École Normale Supérieure de Lyon", "Kiel University", "Friedrich-Alexander-Universität Erlangen-Nürnberg", 
+ "Maastricht University", "Medizinische Hochschule Hannover", "NTNU", "Sechenov University", "Swedish University of Agricultural Sciences", 
+ "Universidad de Sevilla", "Universitat de Valencia", "University Duesseldorf", "University of Bergen", "UEA", 
+ "University of Florence", "University of Granada", "University of Leicester", "University of Münster", "University of Pisa", 
+ "University of Turin", "University of Turku", "Universität Jena", "VUB", "Jagiellonian University", 
+ "Johannes Gutenberg Universität Mainz", "KIT", "Masaryk University", "National and Kapodistrian University of Athens", "UPM", 
+ "Universidade Nova de Lisboa", "University of Bath", "University of Coimbra", "University of Galway", "University of Navarra", 
+ "University of Reading", "University of Rome Tor Vergata", "SDU", "University of Sussex", "University of Warsaw", 
+ "Université Côte d'Azur", "Université de Lille", "Université de Liège", "Chalmers University of Technology", "Durham University"
+]
+
+batch_size = 5
+total_batches = 0
+
+for i in range(0, len(master_list), batch_size):
+    chunk = master_list[i:i + batch_size]
+    start_rank = i + 1
+    end_rank = i + len(chunk)
+    
+    # Create folder name (e.g., runs/rank_41_45)
+    folder_name = f"runs/rank_{start_rank}_{end_rank}"
+    
+    # Make directory
+    os.makedirs(folder_name, exist_ok=True)
+    
+    # Save the chunk into a universities.json file
+    with open(f"{folder_name}/universities.json", "w") as f:
+        json.dump(chunk, f, indent=2)
+        
+    total_batches += 1
+
+print(f"✅ Successfully processed {len(master_list)} universities!")
+print(f"✅ Created {total_batches} folders (from rank_1_5 up to rank_141_144).")
