@@ -10,7 +10,7 @@ import urllib.request
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-MAILTO = "theadrish.ghosh@gmail.com"
+MAILTO = "themamata.ghosh@gmail.com"
 UA = f"SupervisorDiscoveryAgent/1.0 (mailto:{MAILTO})"
 
 _stats = {"requests": 0, "cache_hits": 0, "errors": 0}
