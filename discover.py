@@ -7,7 +7,7 @@ run_dir = sys.argv[1] if len(sys.argv) > 1 else "."
 out_dir = os.path.join(run_dir, "outputs")
 os.makedirs(out_dir, exist_ok=True)
 
-TARGET = 100
+TARGET = 10000
 UNIVERSITIES = json.load(open(os.path.join(run_dir, "universities.json")))
 
 QUEUE_CSV = os.path.join(out_dir, "Candidate_Queue.csv")
