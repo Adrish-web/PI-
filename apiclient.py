@@ -45,7 +45,7 @@ def _get(url, headers=None, cache=True, timeout=40, max_retries=15):
             pass
             
     print(f"      [API-FETCH] Fetching {clean_url}...")
-    delay = 1.0
+    delay = 1.5  # Start with a 1.5s delay to be safe
     last_err = None
     
     for attempt in range(max_retries):
@@ -68,24 +68,6 @@ def _get(url, headers=None, cache=True, timeout=40, max_retries=15):
             last_err = e
             code = getattr(e, "code", None)
             
-            # --- EMAIL ROTATION TRIGGER ---
-            if code in (429, 503):
-                old_email = EMAILS[email_idx]
-                email_idx = (email_idx + 1) % len(EMAILS)
-                new_email = EMAILS[email_idx]
-                print(f"      [API-LIMIT] Hit {code}. Swapping email: {old_email} -> {new_email}")
-                
-                # Update URL with new email (handles both raw and encoded formats)
-                url = url.replace(old_email, new_email)
-                url = url.replace(urllib.parse.quote(old_email), urllib.parse.quote(new_email))
-                
-                if headers and "User-Agent" in headers:
-                    headers["User-Agent"] = headers["User-Agent"].replace(old_email, new_email)
-                
-                delay = 1.0  # Reset delay
-                time.sleep(1)
-                continue
-
             if code in (400, 404):
                 _stats["errors"] += 1
                 data = {"_error": str(e), "_code": code}
@@ -94,9 +76,25 @@ def _get(url, headers=None, cache=True, timeout=40, max_retries=15):
                         json.dump(data, f)
                 return data
                 
-            print(f"      [API-ERROR] {e}. Retrying in {delay}s...")
+            # --- EMAIL ROTATION & EXPONENTIAL BACKOFF ---
+            if code in (429, 503):
+                old_email = EMAILS[email_idx]
+                email_idx = (email_idx + 1) % len(EMAILS)
+                new_email = EMAILS[email_idx]
+                print(f"      [API-LIMIT] Hit {code}. Swapping email ({old_email} -> {new_email}) & waiting {round(delay, 1)}s...")
+                
+                # Update URL with new email
+                url = url.replace(old_email, new_email)
+                url = url.replace(urllib.parse.quote(old_email), urllib.parse.quote(new_email))
+                
+                if headers and "User-Agent" in headers:
+                    headers["User-Agent"] = headers["User-Agent"].replace(old_email, new_email)
+            else:
+                print(f"      [API-ERROR] {e}. Retrying in {round(delay, 1)}s...")
+            
+            # Wait, then increase the delay so we don't bombard the server
             time.sleep(delay)
-            delay = min(delay * 2, 30)
+            delay = min(delay * 1.5, 30)  # Next delay is 1.5x longer (up to 30s)
             
     _stats["errors"] += 1
     return {"_error": str(last_err)}
