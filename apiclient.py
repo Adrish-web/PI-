@@ -1,5 +1,3 @@
-"""HTTP client with on-disk caching and exponential backoff for OpenAlex,
-ORCID public API, and NCBI E-utilities (PubMed)."""
 import hashlib
 import json
 import os
@@ -10,8 +8,18 @@ import urllib.request
 CACHE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-MAILTO = "themamata.ghosh@gmail.com"
-UA = f"SupervisorDiscoveryAgent/1.0 (mailto:{MAILTO})"
+# --- EMAIL ROTATOR SETUP ---
+EMAILS = [
+    "thesankar.ghosh@gmail.com",
+    "theswarnali.ghosh@gmail.com",
+    "sintubhadra7@gmail.com",
+    "adrishghosh.iiserk@gmail.com",
+    "adrish.ghosh@outlook.com"
+]
+email_idx = 0
+
+def get_ua():
+    return f"SupervisorDiscoveryAgent/1.0 (mailto:{EMAILS[email_idx]})"
 
 _stats = {"requests": 0, "cache_hits": 0, "errors": 0}
 
@@ -22,7 +30,8 @@ def _cache_path(key):
     h = hashlib.sha256(key.encode("utf-8")).hexdigest()[:24]
     return os.path.join(CACHE_DIR, h + ".json")
 
-def _get(url, headers=None, cache=True, timeout=40, max_retries=5):
+def _get(url, headers=None, cache=True, timeout=40, max_retries=15):
+    global email_idx
     cp = _cache_path(url)
     clean_url = url.split("?")[0].replace("https://", "").replace("api.openalex.org/", "OpenAlex: ").replace("pub.orcid.org/", "ORCID: ").replace("eutils.ncbi.nlm.nih.gov/entrez/eutils/", "PubMed: ")
     
@@ -38,9 +47,11 @@ def _get(url, headers=None, cache=True, timeout=40, max_retries=5):
     print(f"      [API-FETCH] Fetching {clean_url}...")
     delay = 1.0
     last_err = None
+    
     for attempt in range(max_retries):
         try:
-            req = urllib.request.Request(url, headers=headers or {"User-Agent": UA})
+            hdrs = headers or {"User-Agent": get_ua()}
+            req = urllib.request.Request(url, headers=hdrs)
             with urllib.request.urlopen(req, timeout=timeout) as r:
                 raw = r.read().decode("utf-8")
             _stats["requests"] += 1
@@ -52,9 +63,29 @@ def _get(url, headers=None, cache=True, timeout=40, max_retries=5):
                 with open(cp, "w") as f:
                     json.dump(data, f)
             return data
+            
         except Exception as e:
             last_err = e
             code = getattr(e, "code", None)
+            
+            # --- EMAIL ROTATION TRIGGER ---
+            if code in (429, 503):
+                old_email = EMAILS[email_idx]
+                email_idx = (email_idx + 1) % len(EMAILS)
+                new_email = EMAILS[email_idx]
+                print(f"      [API-LIMIT] Hit {code}. Swapping email: {old_email} -> {new_email}")
+                
+                # Update URL with new email (handles both raw and encoded formats)
+                url = url.replace(old_email, new_email)
+                url = url.replace(urllib.parse.quote(old_email), urllib.parse.quote(new_email))
+                
+                if headers and "User-Agent" in headers:
+                    headers["User-Agent"] = headers["User-Agent"].replace(old_email, new_email)
+                
+                delay = 1.0  # Reset delay
+                time.sleep(1)
+                continue
+
             if code in (400, 404):
                 _stats["errors"] += 1
                 data = {"_error": str(e), "_code": code}
@@ -62,9 +93,11 @@ def _get(url, headers=None, cache=True, timeout=40, max_retries=5):
                     with open(cp, "w") as f:
                         json.dump(data, f)
                 return data
+                
             print(f"      [API-ERROR] {e}. Retrying in {delay}s...")
             time.sleep(delay)
             delay = min(delay * 2, 30)
+            
     _stats["errors"] += 1
     return {"_error": str(last_err)}
 
@@ -73,7 +106,7 @@ OA = "https://api.openalex.org"
 
 def oa_get(path, params):
     params = dict(params)
-    params["mailto"] = MAILTO
+    params["mailto"] = EMAILS[email_idx]
     url = f"{OA}/{path}?{urllib.parse.urlencode(params)}"
     return _get(url)
 
@@ -112,7 +145,7 @@ def orcid_record(orcid):
         return None
     oid = orcid.split("/")[-1]
     url = f"https://pub.orcid.org/v3.0/{oid}/record"
-    return _get(url, headers={"Accept": "application/json", "User-Agent": UA})
+    return _get(url, headers={"Accept": "application/json", "User-Agent": get_ua()})
 
 def parse_orcid(rec):
     out = {"employment": None, "department": None, "urls": [], "email": None, "current": False}
@@ -154,7 +187,7 @@ def pubmed_count(author_name, affiliation=None):
     term = f'{author_name}[Author]'
     if affiliation: term += f' AND {affiliation}[Affiliation]'
     term += ' AND 2022:2026[dp]'
-    url = f"{EUTILS}/esearch.fcgi?db=pubmed&term={urllib.parse.quote(term)}&retmode=json&retmax=1&email={MAILTO}"
+    url = f"{EUTILS}/esearch.fcgi?db=pubmed&term={urllib.parse.quote(term)}&retmode=json&retmax=1&email={EMAILS[email_idx]}"
     d = _get(url)
     try: return int(d.get("esearchresult", {}).get("count", 0))
     except Exception: return 0
